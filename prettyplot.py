@@ -128,6 +128,40 @@ def interpret_systemverilog(tokens):
                 module['interfaces'].append(p)
     return module
 
+def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in'):
+    if len(module[port_list_name])==0:
+        return
+    if set_name is None:
+        set_name = port_list_name
+    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10">\n'
+    if direction == 'in':
+        align = "RIGHT"
+    else:
+        align = "LEFT"
+    if kind == 'port':
+        for i in range(len(module[port_list_name])):
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="Consolas Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, module[port_list_name][i]['type'], module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
+    else:
+        for i in range(len(module[port_list_name])):
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="Consolas Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, module[port_list_name][i]['interface'], module[port_list_name][i]['name'])
+    s += '</TABLE>>'
+    if kind == 'port':
+        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname='Consolas', labeljust='r'))
+        if direction == 'in':
+            for i in range(len(module[port_list_name])):
+                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), arrowhead='tee'))
+        else:
+            for i in range(len(module[port_list_name])):
+                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), arrowtail='tee', dir='back'))
+    else:
+        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname='Consolas', labeljust='l'))
+        if direction == 'in':
+            for i in range(len(module[port_list_name])):
+                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), penwidth=3))
+        else:
+            for i in range(len(module[port_list_name])):
+                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), penwidth=3))
+
 with open("/Users/fconti/hwpe-stream/rtl/basic/hwpe_stream_fence.sv", "r") as f:
     code = f.read()
 
@@ -139,42 +173,46 @@ graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
 s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
 # title
 s += '<TR><TD PORT="t"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
-# other rows
-n_in = len(module['input_ports']) + len(module['incoming_interfaces'])
-n_out = len(module['output_ports']) + len(module['outgoing_interfaces'])
-all_ins = module['input_ports'] + module['incoming_interfaces']
-all_outs = module['output_ports'] + module['outgoing_interfaces']
-mcm = n_in * n_out
-for i in range(mcm):
+# port rows
+n_in  = max(len(module['input_ports']), 1)
+n_out = max(len(module['output_ports']), 1)
+for i in range(0, n_in * n_out):
     s += '<TR>\n'
     if i % n_out == 0:
-        s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, all_ins[i//n_out]['name'])
+        if i//n_out < len(module['input_ports']):
+            s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['input_ports'][i//n_out]['name'])
     if i % n_in == 0:
-        s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, all_outs[i//n_in]['name'])
+        if i//n_in < len(module['output_ports']):
+            s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['output_ports'][i//n_in]['name'])
+    s += '</TR>\n'
+# interface rows (incoming, outgoing)
+n_in  = max(len(module['incoming_interfaces']), 1)
+n_out = max(len(module['outgoing_interfaces']), 1)
+for i in range(0, n_in * n_out):
+    s += '<TR>\n'
+    if i % n_out == 0:
+        if i//n_out < len(module['incoming_interfaces']):
+            s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['incoming_interfaces'][i//n_out]['name'])
+    if i % n_in == 0:
+        if i//n_in < len(module['outgoing_interfaces']):
+            s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['outgoing_interfaces'][i//n_in]['name'])
+    s += '</TR>\n'
+# interface rows -- the rest
+n = len(module['interfaces'])
+for i in range(0, n):
+    s += '<TR>\n'
+    s += '<TD ROWSPAN="1" PORT="iri%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
+    s += '<TD ROWSPAN="1" PORT="iro%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
     s += '</TR>\n'
 s += '</TABLE>>'
 graph.add_node(pydotplus.graphviz.Node(module['name'], label=s, shape='none', fontname='Helvetica Neue'))
 
-# inbound nodes/edges
-s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10">\n'
-for i in range(len(all_ins)):
-    s += '<TR><TD PORT="i%d">%s</TD></TR>' % (i, all_ins[i]['name'])
-s += '</TABLE>>'
-graph.add_node(pydotplus.graphviz.Node('inputs', label=s, shape='none', fontname='Helvetica Neue'))
-for i in range(len(all_ins)):
-    graph.add_edge(pydotplus.graphviz.Edge(('inputs:i%d' % i, module['name']+':i%d' % i)))
-
-# outbound nodes/edges
-s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10">\n'
-for i in range(len(all_outs)):
-    try:
-        s += '<TR><TD PORT="o%d"><FONT FACE="Consolas Bold">%s</FONT>%s %s</TD></TR>' % (i, all_outs[i]['type'], all_outs[i]['packed0']+all_outs[i]['packed1']+all_outs[i]['packed2']+all_outs[i]['packed3'], all_outs[i]['name'])
-    except KeyError:
-        s += '<TR><TD PORT="o%d"><FONT FACE="Consolas Bold">%s</FONT> %s</TD></TR>' % (i, all_outs[i]['interface'], all_outs[i]['name'])
-s += '</TABLE>>'
-graph.add_node(pydotplus.graphviz.Node('outputs', label=s, shape='none', fontname='Consolas'))
-for i in range(len(all_outs)):
-    graph.add_edge(pydotplus.graphviz.Edge((module['name']+':o%d' % i, 'outputs:o%d' % i)))
+add_nodes_edges(module, 'input_ports', 'i', direction='in')
+add_nodes_edges(module, 'incoming_interfaces', 'ii', kind='interface', direction='in')
+# add_nodes_edges(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface')
+add_nodes_edges(module, 'output_ports', 'o', direction='out')
+add_nodes_edges(module, 'outgoing_interfaces', 'io', kind='interface', direction='out')
+# add_nodes_edges(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface')
 
 with open("prova.pdf", "wb") as f:
     f.write(graph.create_pdf())
