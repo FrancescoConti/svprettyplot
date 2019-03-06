@@ -12,7 +12,6 @@ TOKENS = OrderedDict([
     ( 'PARAMETER_DECL',       r'\Aparameter\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?(\D\w*)\s*=\s*(\w+)\s*'                           ),
     ( 'PORT_LIST_START',      r'\A\(\s*'                                                                                                          ),
     ( 'PORT_LIST_COMMA',      r'\A\,\s*'                                                                                                          ),
-    # ( 'PORT_DECL',            r'\A(input|output|inout)?\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\w+)\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?'),
     ( 'PORT_DECL', r'\A(input|output|inout)?\s*(\w+)?\s*(signed|unsigned)?\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\w+)\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?'),
     ( 'PORT_DECL_INTF',       r'\A(\D\w*)\.(\D\w*)\s+(\D\w*)\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?'                            ),
     ( 'LIST_STOP',            r'\A\)\s*'                                                                                                          ),
@@ -52,11 +51,26 @@ FOLLOWS = OrderedDict([
 INTERFACES_INCOMING_MODPORTS = ( 'slave', 'sink', 'monitor' )
 INTERFACES_OUTGOING_MODPORTS = ( 'master', 'source' )
 
-def tokenize_systemverilog(code, verbose=True):
+def tokenize_systemverilog(code, verbose=False):
     # set up token list
     tokens = []
     # look for "model" keyword
     curr_token = 'ROOT'
+    # remove all comments
+    code = re.sub(r'//.*\n', ' ', code)
+    split = re.split(r'(/\*|\*/)', code)
+    flag = False 
+    clean_split = [] 
+    for s in split: 
+        if s == '/*': 
+            flag = True 
+            continue 
+        elif s == '*/': 
+            flag = False 
+            continue 
+        elif not flag: 
+            clean_split.append(s)
+    code = ''.join(clean_split)
     # tokenize & parse
     while True:
         flag = True
@@ -68,7 +82,6 @@ def tokenize_systemverilog(code, verbose=True):
                 break
         if flag:
             print("ERROR @%s" % next_token)
-            # print("FOLLOWS: %s" % (FOLLOWS[curr_token]))
             print("REMAINING CODE:", code)
             return None
         # next code is given by split[-1]
@@ -114,13 +127,14 @@ def interpret_systemverilog(tokens):
             p['packed1'] = t['packed1'] if t['packed1'] is not None else ''
             p['packed2'] = t['packed2'] if t['packed2'] is not None else ''
             p['packed3'] = t['packed3'] if t['packed3'] is not None else ''
-            p['unpacked'] = t['unpacked']
+            p['unpacked'] = t['unpacked'] if t['unpacked'] is not None else ''
             module['%s_ports' % t['direction']].append(p)
         elif t['token_type'] == 'PORT_DECL_INTF':
             p = OrderedDict([])
             p['name'] = t['name']
             p['interface'] = t['interface']
             p['modport'] = t['modport']
+            p['unpacked'] = t['unpacked'] if t['unpacked'] is not None else ''
             if p['modport'] in INTERFACES_INCOMING_MODPORTS:
                 module['incoming_interfaces'].append(p)
             elif p['modport'] in INTERFACES_OUTGOING_MODPORTS:
@@ -149,7 +163,9 @@ def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='p
     s = ''
     if kind == 'port':
         for i in range(len(module[port_list_name])):
-            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, font_face, module[port_list_name][i]['type'], module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
+            tp = module[port_list_name][i]['type']
+            tp = ' ' if tp in ('logic', 'wire', 'reg') else tp
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, font_face, tp, module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
     else:
         for i in range(len(module[port_list_name])):
             try:
@@ -159,7 +175,7 @@ def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='p
             s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, font_face, intf_name, module[port_list_name][i]['name'])
     return s
 
-def add_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
+def add_edges(graph, module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
     if len(module[port_list_name])==0:
         return
     if set_name is None:
@@ -167,82 +183,89 @@ def add_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='por
     if kind == 'port':
         if direction == 'in':
             for i in range(len(module[port_list_name])):
-                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), arrowhead='tee'))
+                label = module[port_list_name][i]['unpacked']+module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3']
+                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, arrowhead='tee'))
         else:
             for i in range(len(module[port_list_name])):
-                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), arrowtail='tee', dir='back'))
+                label = module[port_list_name][i]['unpacked']+module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3']
+                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, arrowtail='tee', dir='back'))
     else:
         if direction == 'in':
             for i in range(len(module[port_list_name])):
-                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), penwidth=3))
+                label = module[port_list_name][i]['unpacked']
+                graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, penwidth=3))
         else:
             for i in range(len(module[port_list_name])):
-                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), penwidth=3))
+                label = module[port_list_name][i]['unpacked']
+                graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, penwidth=3))
 
-with open("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "r") as f:
-    code = f.read()
+def sv_prettyplot(path, genimg_path):
+    with open(path, "r") as f:
+        code = f.read()
 
-tokens = tokenize_systemverilog(code)
-module = interpret_systemverilog(tokens)
+    tokens = tokenize_systemverilog(code)
+    module = interpret_systemverilog(tokens)
 
-# module = {'name': 'mod'}
-graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
-s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
-# title
-s += '<TR><TD PORT="t" COLSPAN="2"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
-# port rows
-n_in  = max(len(module['input_ports']), 1)
-n_out = max(len(module['output_ports']), 1)
-for i in range(0, n_in * n_out):
-    s += '<TR>\n'
-    if i % n_out == 0:
-        if i//n_out < len(module['input_ports']):
-            s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['input_ports'][i//n_out]['name'])
-    if i % n_in == 0:
-        if i//n_in < len(module['output_ports']):
-            s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['output_ports'][i//n_in]['name'])
-    s += '</TR>\n'
-# interface rows (incoming, outgoing)
-n_in  = max(len(module['incoming_interfaces']), 1)
-n_out = max(len(module['outgoing_interfaces']), 1)
-for i in range(0, n_in * n_out):
-    s += '<TR>\n'
-    if i % n_out == 0:
-        if i//n_out < len(module['incoming_interfaces']):
-            s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['incoming_interfaces'][i//n_out]['name'])
-    if i % n_in == 0:
-        if i//n_in < len(module['outgoing_interfaces']):
-            s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['outgoing_interfaces'][i//n_in]['name'])
-    s += '</TR>\n'
-# interface rows -- the rest
-n = len(module['interfaces'])
-for i in range(0, n):
-    s += '<TR>\n'
-    s += '<TD ROWSPAN="1" PORT="iri%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
-    s += '<TD ROWSPAN="1" PORT="iro%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
-    s += '</TR>\n'
-s += '</TABLE>>'
-graph.add_node(pydotplus.graphviz.Node(module['name'], label=s, shape='none', fontname='Helvetica Neue'))
+    graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
+    s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
+    # title
+    s += '<TR><TD PORT="t" COLSPAN="2"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
+    # port rows
+    n_in  = max(len(module['input_ports']), 1)
+    n_out = max(len(module['output_ports']), 1)
+    for i in range(0, n_in * n_out):
+        s += '<TR>\n'
+        if i % n_out == 0:
+            if i//n_out < len(module['input_ports']):
+                s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['input_ports'][i//n_out]['name'])
+        if i % n_in == 0:
+            if i//n_in < len(module['output_ports']):
+                s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['output_ports'][i//n_in]['name'])
+        s += '</TR>\n'
+    # interface rows (incoming, outgoing)
+    n_in  = max(len(module['incoming_interfaces']), 1)
+    n_out = max(len(module['outgoing_interfaces']), 1)
+    for i in range(0, n_in * n_out):
+        s += '<TR>\n'
+        if i % n_out == 0:
+            if i//n_out < len(module['incoming_interfaces']):
+                s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['incoming_interfaces'][i//n_out]['name'])
+        if i % n_in == 0:
+            if i//n_in < len(module['outgoing_interfaces']):
+                s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['outgoing_interfaces'][i//n_in]['name'])
+        s += '</TR>\n'
+    # interface rows -- the rest
+    n = len(module['interfaces'])
+    for i in range(0, n):
+        s += '<TR>\n'
+        s += '<TD ROWSPAN="1" PORT="iri%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
+        s += '<TD ROWSPAN="1" PORT="iro%d"><FONT COLOR="white">%s</FONT></TD>\n' % (i, module['interfaces'][i]['name'])
+        s += '</TR>\n'
+    s += '</TABLE>>'
+    graph.add_node(pydotplus.graphviz.Node(module['name'], label=s, shape='none', fontname='Helvetica Neue'))
 
 
-s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
-s += write_nodes(module, 'input_ports', 'i', direction='in', set_name='inputs')
-s += write_nodes(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
-# s += write_nodes(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface', direction='in', set_name='inputs')
-s += '</TABLE>>'
-graph.add_node(pydotplus.graphviz.Node('inputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='r'))
+    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+    s += write_nodes(module, 'input_ports', 'i', direction='in', set_name='inputs')
+    s += write_nodes(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
+    # s += write_nodes(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface', direction='in', set_name='inputs')
+    s += '</TABLE>>'
+    graph.add_node(pydotplus.graphviz.Node('inputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='r'))
 
-s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
-s += write_nodes(module, 'output_ports', 'o', direction='out', set_name='outputs')
-s += write_nodes(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
-# s += write_nodes(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface', direction='out', set_name='outputs')
-s += '</TABLE>>'
-graph.add_node(pydotplus.graphviz.Node('outputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='l'))
+    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+    s += write_nodes(module, 'output_ports', 'o', direction='out', set_name='outputs')
+    s += write_nodes(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
+    # s += write_nodes(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface', direction='out', set_name='outputs')
+    s += '</TABLE>>'
+    graph.add_node(pydotplus.graphviz.Node('outputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='l'))
 
-add_edges(module, 'input_ports', 'i', direction='in', set_name='inputs')
-add_edges(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
-add_edges(module, 'output_ports', 'o', direction='out', set_name='outputs')
-add_edges(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
+    add_edges(graph, module, 'input_ports', 'i', direction='in', set_name='inputs')
+    add_edges(graph, module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
+    add_edges(graph, module, 'output_ports', 'o', direction='out', set_name='outputs')
+    add_edges(graph, module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
 
-with open("prova.pdf", "wb") as f:
-    f.write(graph.create_pdf())
+    with open(genimg_path, "wb") as f:
+        f.write(graph.create_pdf())
+
+if __name__ == "__main__":
+    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/tcdm/hwpe_stream_tcdm_mux.sv", "genimg/hwpe_stream_tcdm_mux.pdf")
