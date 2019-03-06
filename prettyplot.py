@@ -12,7 +12,8 @@ TOKENS = OrderedDict([
     ( 'PARAMETER_DECL',       r'\Aparameter\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?(\D\w*)\s*=\s*(\w+)\s*'                           ),
     ( 'PORT_LIST_START',      r'\A\(\s*'                                                                                                          ),
     ( 'PORT_LIST_COMMA',      r'\A\,\s*'                                                                                                          ),
-    ( 'PORT_DECL',            r'\A(input|output|inout)?\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\w+)\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?'),
+    # ( 'PORT_DECL',            r'\A(input|output|inout)?\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?(\w+)\s*(\[\s*\w+\s*\:\s*\w+\s*\]\s*)?'),
+    ( 'PORT_DECL', r'\A(input|output|inout)?\s*(\w+)?\s*(signed|unsigned)?\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?(\w+)\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?'),
     ( 'PORT_DECL_INTF',       r'\A(\D\w*)\.(\D\w*)\s+(\D\w*)\s*(\[\s*[\w\-\+\*\/\%]+\s*\:\s*[\w\-\+\*\/\%]+\s*\]\s*)?'                            ),
     ( 'LIST_STOP',            r'\A\)\s*'                                                                                                          ),
     ( 'DECL_END',             r'\A\;\s*'                                                                                                          )
@@ -130,25 +131,40 @@ def interpret_systemverilog(tokens):
 
 DEFAULT_FONT = "Helvetica Neue"
 
-def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
+INTERFACE_MAP = {
+    # 'hwpe_stream_intf_stream' : 'HWPE-Stream',
+    # 'hwpe_stream_intf_tcdm'   : 'HWPE-Mem',
+    # 'hwpe_ctrl_intf_periph'   : 'HWPE-Periph',
+}
+
+def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
     if len(module[port_list_name])==0:
-        return
+        return ''
     if set_name is None:
         set_name = port_list_name
-    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10">\n'
     if direction == 'in':
         align = "RIGHT"
     else:
         align = "LEFT"
+    s = ''
     if kind == 'port':
         for i in range(len(module[port_list_name])):
             s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, font_face, module[port_list_name][i]['type'], module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
     else:
         for i in range(len(module[port_list_name])):
-            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, font_face, module[port_list_name][i]['interface'], module[port_list_name][i]['name'])
-    s += '</TABLE>>'
+            try:
+                intf_name = INTERFACE_MAP[module[port_list_name][i]['interface']]
+            except KeyError:
+                intf_name = module[port_list_name][i]['interface']
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, font_face, intf_name, module[port_list_name][i]['name'])
+    return s
+
+def add_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
+    if len(module[port_list_name])==0:
+        return
+    if set_name is None:
+        set_name = port_list_name
     if kind == 'port':
-        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname=font_face, labeljust='r'))
         if direction == 'in':
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), arrowhead='tee'))
@@ -156,7 +172,6 @@ def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kin
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), arrowtail='tee', dir='back'))
     else:
-        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname=font_face, labeljust='l'))
         if direction == 'in':
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), penwidth=3))
@@ -164,7 +179,7 @@ def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kin
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), penwidth=3))
 
-with open("/Users/fconti/hwpe-stream/rtl/basic/hwpe_stream_fence.sv", "r") as f:
+with open("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "r") as f:
     code = f.read()
 
 tokens = tokenize_systemverilog(code)
@@ -209,12 +224,25 @@ for i in range(0, n):
 s += '</TABLE>>'
 graph.add_node(pydotplus.graphviz.Node(module['name'], label=s, shape='none', fontname='Helvetica Neue'))
 
-add_nodes_edges(module, 'input_ports', 'i', direction='in')
-add_nodes_edges(module, 'incoming_interfaces', 'ii', kind='interface', direction='in')
-# add_nodes_edges(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface')
-add_nodes_edges(module, 'output_ports', 'o', direction='out')
-add_nodes_edges(module, 'outgoing_interfaces', 'io', kind='interface', direction='out')
-# add_nodes_edges(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface')
+
+s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+s += write_nodes(module, 'input_ports', 'i', direction='in', set_name='inputs')
+s += write_nodes(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
+# s += write_nodes(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface', direction='in', set_name='inputs')
+s += '</TABLE>>'
+graph.add_node(pydotplus.graphviz.Node('inputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='r'))
+
+s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+s += write_nodes(module, 'output_ports', 'o', direction='out', set_name='outputs')
+s += write_nodes(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
+# s += write_nodes(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface', direction='out', set_name='outputs')
+s += '</TABLE>>'
+graph.add_node(pydotplus.graphviz.Node('outputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='l'))
+
+add_edges(module, 'input_ports', 'i', direction='in', set_name='inputs')
+add_edges(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
+add_edges(module, 'output_ports', 'o', direction='out', set_name='outputs')
+add_edges(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
 
 with open("prova.pdf", "wb") as f:
     f.write(graph.create_pdf())
