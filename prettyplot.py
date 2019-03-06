@@ -128,7 +128,9 @@ def interpret_systemverilog(tokens):
                 module['interfaces'].append(p)
     return module
 
-def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in'):
+DEFAULT_FONT = "Helvetica Neue"
+
+def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
     if len(module[port_list_name])==0:
         return
     if set_name is None:
@@ -140,13 +142,13 @@ def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kin
         align = "LEFT"
     if kind == 'port':
         for i in range(len(module[port_list_name])):
-            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="Consolas Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, module[port_list_name][i]['type'], module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, font_face, module[port_list_name][i]['type'], module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
     else:
         for i in range(len(module[port_list_name])):
-            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="Consolas Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, module[port_list_name][i]['interface'], module[port_list_name][i]['name'])
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, font_face, module[port_list_name][i]['interface'], module[port_list_name][i]['name'])
     s += '</TABLE>>'
     if kind == 'port':
-        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname='Consolas', labeljust='r'))
+        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname=font_face, labeljust='r'))
         if direction == 'in':
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), arrowhead='tee'))
@@ -154,7 +156,7 @@ def add_nodes_edges(module, port_list_name, shorthand_prefix, set_name=None, kin
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), arrowtail='tee', dir='back'))
     else:
-        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname='Consolas', labeljust='l'))
+        graph.add_node(pydotplus.graphviz.Node(set_name, label=s, shape='none', fontname=font_face, labeljust='l'))
         if direction == 'in':
             for i in range(len(module[port_list_name])):
                 graph.add_edge(pydotplus.graphviz.Edge(('%s:%s%d' % (set_name, shorthand_prefix, i), module['name']+':%s%d' % (shorthand_prefix, i)), penwidth=3))
@@ -172,7 +174,7 @@ module = interpret_systemverilog(tokens)
 graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
 s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
 # title
-s += '<TR><TD PORT="t"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
+s += '<TR><TD PORT="t" COLSPAN="2"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
 # port rows
 n_in  = max(len(module['input_ports']), 1)
 n_out = max(len(module['output_ports']), 1)
