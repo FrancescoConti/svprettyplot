@@ -4,6 +4,30 @@ import re
 from collections import OrderedDict
 import pydotplus
 
+# RST_TOKENS = OrderedDict([
+#     ( 'RST_BLOCK_START',   r'/\*\*\s*'        ),
+#     ( 'RST_LINE_START',    r'//(\*|/)\s*'     ),
+#     ( 'RST_BLOCK_END',     r'\*/\s*'          ),
+#     ( 'RST_LINE_CONTENT',  r'([^\n]*)'        ),
+#     ( 'RST_BLOCK_CONTENT', r'([^\*]*)(?=\*)?' ),
+# ])
+
+# RST_MATCHES = OrderedDict([
+#     ( 'RST_BLOCK_START',   ( ) ),
+#     ( 'RST_LINE_START',    ( ) ),
+#     ( 'RST_BLOCK_END',     ( ) ),
+#     ( 'RST_LINE_CONTENT',  ( ) ),
+#     ( 'RST_BLOCK_CONTENT', ( ) ),
+# ])
+
+# RST_FOLLOWS = OrderedDict([
+#     ( 'RST_BLOCK_START',   ( 'RST_BLOCK_CONTENT', 'RST_BLOCK_END' ) ),
+#     ( 'RST_LINE_START',    ( 'RST_LINE_CONTENT', ) ),
+#     ( 'RST_BLOCK_END',     ( '' ) ),
+#     ( 'RST_LINE_CONTENT',  ( ) ),
+#     ( 'RST_BLOCK_CONTENT', ( ) ),
+# ])
+
 TOKENS = OrderedDict([
     ( 'MODULE_KEYWORD',       r'.*module\s*'                                                                                                      ),
     ( 'MODULE_NAME',          r'\A(\D\w*)\s*'                                                                                                     ),
@@ -51,31 +75,14 @@ FOLLOWS = OrderedDict([
 INTERFACES_INCOMING_MODPORTS = ( 'slave', 'sink', 'monitor' )
 INTERFACES_OUTGOING_MODPORTS = ( 'master', 'source' )
 
-def tokenize_systemverilog(code, verbose=False):
-    # set up token list
-    tokens = []
-    # look for "model" keyword
-    curr_token = 'ROOT'
-    # remove all comments
-    code = re.sub(r'//.*\n', ' ', code)
-    split = re.split(r'(/\*|\*/)', code)
-    flag = False 
-    clean_split = [] 
-    for s in split: 
-        if s == '/*': 
-            flag = True 
-            continue 
-        elif s == '*/': 
-            flag = False 
-            continue 
-        elif not flag: 
-            clean_split.append(s)
-    code = ''.join(clean_split)
+def tokenize_and_parse(code, verbose=False, follows_list=FOLLOWS, tokens_list=TOKENS, matches_list=MATCHES):
     # tokenize & parse
+    tokens = [] # set up token list
+    curr_token = 'ROOT' # look for "model" keyword
     while True:
         flag = True
-        for next_token in FOLLOWS[curr_token]:
-            pattern = TOKENS[next_token]
+        for next_token in follows_list[curr_token]:
+            pattern = tokens_list[next_token]
             split = re.split(pattern, code, maxsplit=1)
             if len(split) > 1:
                 flag = False
@@ -88,7 +95,7 @@ def tokenize_systemverilog(code, verbose=False):
         code = split[-1]
         token = OrderedDict([])
         token['token_type'] = next_token
-        for i,m in enumerate(MATCHES[next_token]):
+        for i,m in enumerate(matches_list[next_token]):
             token[m] = split[1+i]
         tokens.append(token)
         if verbose:
@@ -99,6 +106,27 @@ def tokenize_systemverilog(code, verbose=False):
         if next_token == 'DECL_END':
             break
     return tokens
+
+def tokenize_systemverilog(code, verbose=False):
+    # interpret RST comments
+    # tokenize_and_parse(code, follows_list=RST_FOLLOWS)
+    # remove all comments, keep RST ones
+    code = re.sub(r'//.*\n', ' ', code)
+    split = re.split(r'(/\*|\*/)', code)
+    flag = False
+    clean_split = []
+    for s in split:
+        if s == '/*':
+            flag = True
+            continue
+        elif s == '*/':
+            flag = False
+            continue
+        elif not flag:
+            clean_split.append(s)
+    code = ''.join(clean_split)
+    # tokenize & parse
+    return tokenize_and_parse(code, verbose=verbose)
 
 def interpret_systemverilog(tokens):
     module = OrderedDict([])
