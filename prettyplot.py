@@ -95,9 +95,8 @@ def get_rst_comments(code):
             flag = False
             continue
         elif flag:
-            s = re.sub(re.compile(r'^\s*\*\s*', re.MULTILINE), '', s)
-            s = re.sub(re.compile(r'^\s*\*\s*', re.MULTILINE), '\n', s)
-            # s = re.sub(r'^\s*', '', s)
+            s = re.sub(re.compile(r'^\s*\* ', re.MULTILINE), '', s)
+            s = re.sub(re.compile(r'^\s*\*\s', re.MULTILINE), '\n', s)
             long_comments.append(s)
     short_comments = []
     split = re.split(r'(//\*|\n)', code)
@@ -238,12 +237,19 @@ def add_edges(graph, module, port_list_name, shorthand_prefix, set_name=None, ki
                 label = module[port_list_name][i]['unpacked']
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, penwidth=3))
 
-def sv_prettyplot(path, genimg_path):
+def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
     with open(path, "r") as f:
         code = f.read()
 
     tokens, comments = tokenize_systemverilog(code)
     module = interpret_systemverilog(tokens)
+
+    from math import gcd as bltin_gcd
+
+    def coprime2(a, b):
+        if a == 1 or b == 1:
+            return False
+        return bltin_gcd(a, b) == 1
 
     graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
     s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
@@ -252,27 +258,45 @@ def sv_prettyplot(path, genimg_path):
     # port rows
     n_in  = max(len(module['input_ports']), 1)
     n_out = max(len(module['output_ports']), 1)
-    for i in range(0, n_in * n_out):
-        s += '<TR>\n'
-        if i % n_out == 0:
-            if i//n_out < len(module['input_ports']):
-                s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['input_ports'][i//n_out]['name'])
-        if i % n_in == 0:
-            if i//n_in < len(module['output_ports']):
-                s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['output_ports'][i//n_in]['name'])
-        s += '</TR>\n'
+    coprime = coprime2(n_in, n_out) or always_coprime
+    nb_ports = max(n_in, n_out) if coprime else n_in * n_out
+    if len(module['input_ports'])>0 or len(module['input_ports'])>0:
+        for i in range(0, nb_ports):
+            i_out_cond = i<n_in  if coprime else i%n_out==0
+            i_in_cond  = i<n_out if coprime else i%n_in==0
+            i_out = i if coprime else i//n_out
+            i_in  = i if coprime else i//n_in
+            rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
+            rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
+            s += '<TR>\n'
+            if i_out_cond:
+                if i_out < len(module['input_ports']):
+                    s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['input_ports'][i_out]['name'])
+            if i_in_cond:
+                if i_in < len(module['output_ports']):
+                    s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['output_ports'][i_in]['name'])
+            s += '</TR>\n'
     # interface rows (incoming, outgoing)
     n_in  = max(len(module['incoming_interfaces']), 1)
     n_out = max(len(module['outgoing_interfaces']), 1)
-    for i in range(0, n_in * n_out):
-        s += '<TR>\n'
-        if i % n_out == 0:
-            if i//n_out < len(module['incoming_interfaces']):
-                s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_out, i//n_out, module['incoming_interfaces'][i//n_out]['name'])
-        if i % n_in == 0:
-            if i//n_in < len(module['outgoing_interfaces']):
-                s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (n_in, i//n_in, module['outgoing_interfaces'][i//n_in]['name'])
-        s += '</TR>\n'
+    coprime = coprime2(n_in, n_out) or always_coprime
+    nb_ports = max(n_in, n_out) if coprime else n_in * n_out
+    if len(module['incoming_interfaces'])>0 or len(module['outgoing_interfaces'])>0:
+        for i in range(0, nb_ports):
+            i_out_cond = i<n_in  if coprime else i%n_out==0
+            i_in_cond  = i<n_out if coprime else i%n_in==0
+            i_out = i if coprime else i//n_out
+            i_in  = i if coprime else i//n_in
+            rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
+            rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
+            s += '<TR>\n'
+            if i_out_cond:
+                if i_out < len(module['incoming_interfaces']):
+                    s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['incoming_interfaces'][i_out]['name'])
+            if i_in_cond:
+                if i_in < len(module['outgoing_interfaces']):
+                    s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['outgoing_interfaces'][i_in]['name'])
+            s += '</TR>\n'
     # interface rows -- the rest
     n = len(module['interfaces'])
     for i in range(0, n):
@@ -303,10 +327,14 @@ def sv_prettyplot(path, genimg_path):
     add_edges(graph, module, 'output_ports', 'o', direction='out', set_name='outputs')
     add_edges(graph, module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
 
+    if gendot_path is not None:
+        graph.write(gendot_path)
+
     with open(genimg_path, "wb") as f:
         f.write(graph.create_pdf())
 
     return comments
 
 if __name__ == "__main__":
-    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/tcdm/hwpe_stream_tcdm_mux.sv", "genimg/hwpe_stream_tcdm_mux.pdf")
+    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "genimg/hwpe_stream_fifo.pdf", "genimg/hwpe_stream_fifo.dot")
+    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo_ctrl.sv", "genimg/hwpe_stream_fifo_ctrl.pdf", "genimg/hwpe_stream_fifo_ctrl.dot")
