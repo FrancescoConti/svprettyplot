@@ -27,24 +27,28 @@ class SVPrettyPlot(Image, SphinxDirective):
 
         document = self.state.document
 
-        # Store code in a special docutils node and pick up at rendering
-        # node = svprettyplotnode()
-
         basename = os.path.basename(path)
-        inner_node = nodes.image(uri='%s/%s.pdf' % (genimg_path, basename), figwidth='95%', width='95%', align='center')
-
-        node = inner_node
+        node = nodes.image(uri='%s/%s.pdf' % (genimg_path, basename), figwidth='95%', width='95%', align='center')
 
         try:
             os.makedirs(genimg_path)
         except FileExistsError:
             pass
-        prettyplot.sv_prettyplot(path, '%s/%s.pdf' % (genimg_path, basename))
+        comments = prettyplot.sv_prettyplot(path, '%s/%s.pdf' % (genimg_path, basename))
+        try:
+            text = nodes.Text("\n\n" + "\n\n".join(comments[0]))
+            print(text.astext())
+        except IndexError:
+            text = None
+            print("None")
 
         self.arguments = ["dummy"]
-        (inner_node['image_node'],) = Image.run(self)
+        (node['image_node'],) = Image.run(self)
 
-        return [node]
+        if text is not None:
+            return [node, text ]
+        else:
+            return [node ]
 
 def setup(app):
     app.add_directive("svprettyplot", SVPrettyPlot)

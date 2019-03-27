@@ -107,10 +107,38 @@ def tokenize_and_parse(code, verbose=False, follows_list=FOLLOWS, tokens_list=TO
             break
     return tokens
 
-def tokenize_systemverilog(code, verbose=False):
-    # interpret RST comments
-    # tokenize_and_parse(code, follows_list=RST_FOLLOWS)
-    # remove all comments, keep RST ones
+def get_rst_comments(code):
+    long_comments = []
+    split = re.split(r'(/\*\*|\*/)', code)
+    flag = False
+    for s in split:
+        if s == '/**':
+            flag = True
+            continue
+        elif s == '*/':
+            flag = False
+            continue
+        elif flag:
+            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
+            s = re.sub(re.compile(r'^\*',  re.MULTILINE), ' ', s)
+            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
+            long_comments.append(s)
+    short_comments = []
+    split = re.split(r'(//\*|\n)', code)
+    flag = False
+    for s in split:
+        if s == '//*':
+            flag = True
+            continue
+        elif s == '\n':
+            flag = False
+            continue
+        elif flag:
+            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
+            short_comments.append(s)
+    return long_comments, short_comments
+
+def remove_comments(code):
     code = re.sub(r'//.*\n', ' ', code)
     split = re.split(r'(/\*|\*/)', code)
     flag = False
@@ -125,8 +153,15 @@ def tokenize_systemverilog(code, verbose=False):
         elif not flag:
             clean_split.append(s)
     code = ''.join(clean_split)
+    return code
+
+def tokenize_systemverilog(code, verbose=False):
+    # get RST comments
+    comments = get_rst_comments(code)
+    # remove all comments
+    code = remove_comments(code)
     # tokenize & parse
-    return tokenize_and_parse(code, verbose=verbose)
+    return tokenize_and_parse(code, verbose=verbose), comments
 
 def interpret_systemverilog(tokens):
     module = OrderedDict([])
@@ -231,7 +266,7 @@ def sv_prettyplot(path, genimg_path):
     with open(path, "r") as f:
         code = f.read()
 
-    tokens = tokenize_systemverilog(code)
+    tokens, comments = tokenize_systemverilog(code)
     module = interpret_systemverilog(tokens)
 
     graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
@@ -294,6 +329,8 @@ def sv_prettyplot(path, genimg_path):
 
     with open(genimg_path, "wb") as f:
         f.write(graph.create_pdf())
+
+    return comments
 
 if __name__ == "__main__":
     sv_prettyplot("/Users/fconti/hwpe-stream/rtl/tcdm/hwpe_stream_tcdm_mux.sv", "genimg/hwpe_stream_tcdm_mux.pdf")
