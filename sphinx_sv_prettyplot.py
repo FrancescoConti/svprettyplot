@@ -38,18 +38,20 @@ class SVPrettyPlot(Image, SphinxDirective):
 
         parser = docutils.parsers.rst.Parser()
 
-        # node['caption'] = nodes.caption("**%s** module." % basename)
         try:
             text = docutils.utils.new_document("", settings=document.settings)
             parser.parse("\n\n".join(comments[0]), text)
+            paragraphs = []
+            for p in text:
+                paragraphs.append(p)
         except IndexError:
-            text = nodes.paragraph("HELLO")
+            pass
 
         self.arguments = ["dummy"]
         (node['image_node'],) = Image.run(self)
 
         if text is not None:
-            return [node, text ]
+            return [node, *paragraphs ]
         else:
             return [node, ]
 

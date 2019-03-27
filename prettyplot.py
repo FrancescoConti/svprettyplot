@@ -4,30 +4,6 @@ import re
 from collections import OrderedDict
 import pydotplus
 
-# RST_TOKENS = OrderedDict([
-#     ( 'RST_BLOCK_START',   r'/\*\*\s*'        ),
-#     ( 'RST_LINE_START',    r'//(\*|/)\s*'     ),
-#     ( 'RST_BLOCK_END',     r'\*/\s*'          ),
-#     ( 'RST_LINE_CONTENT',  r'([^\n]*)'        ),
-#     ( 'RST_BLOCK_CONTENT', r'([^\*]*)(?=\*)?' ),
-# ])
-
-# RST_MATCHES = OrderedDict([
-#     ( 'RST_BLOCK_START',   ( ) ),
-#     ( 'RST_LINE_START',    ( ) ),
-#     ( 'RST_BLOCK_END',     ( ) ),
-#     ( 'RST_LINE_CONTENT',  ( ) ),
-#     ( 'RST_BLOCK_CONTENT', ( ) ),
-# ])
-
-# RST_FOLLOWS = OrderedDict([
-#     ( 'RST_BLOCK_START',   ( 'RST_BLOCK_CONTENT', 'RST_BLOCK_END' ) ),
-#     ( 'RST_LINE_START',    ( 'RST_LINE_CONTENT', ) ),
-#     ( 'RST_BLOCK_END',     ( '' ) ),
-#     ( 'RST_LINE_CONTENT',  ( ) ),
-#     ( 'RST_BLOCK_CONTENT', ( ) ),
-# ])
-
 TOKENS = OrderedDict([
     ( 'MODULE_KEYWORD',       r'.*module\s*'                                                                                                      ),
     ( 'MODULE_NAME',          r'\A(\D\w*)\s*'                                                                                                     ),
@@ -209,9 +185,9 @@ def interpret_systemverilog(tokens):
 DEFAULT_FONT = "Helvetica Neue"
 
 INTERFACE_MAP = {
-    # 'hwpe_stream_intf_stream' : 'HWPE-Stream',
-    # 'hwpe_stream_intf_tcdm'   : 'HWPE-Mem',
-    # 'hwpe_ctrl_intf_periph'   : 'HWPE-Periph',
+    'hwpe_stream_intf_stream' : 'HWPE-Stream',
+    'hwpe_stream_intf_tcdm'   : 'HWPE-Mem',
+    'hwpe_ctrl_intf_periph'   : 'HWPE-Periph',
 }
 
 def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
