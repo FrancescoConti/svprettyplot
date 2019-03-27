@@ -119,9 +119,9 @@ def get_rst_comments(code):
             flag = False
             continue
         elif flag:
-            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
-            s = re.sub(re.compile(r'^\*',  re.MULTILINE), ' ', s)
-            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
+            s = re.sub(re.compile(r'^\s*\*\s*', re.MULTILINE), '', s)
+            s = re.sub(re.compile(r'^\s*\*\s*', re.MULTILINE), '\n', s)
+            # s = re.sub(r'^\s*', '', s)
             long_comments.append(s)
     short_comments = []
     split = re.split(r'(//\*|\n)', code)
@@ -134,7 +134,7 @@ def get_rst_comments(code):
             flag = False
             continue
         elif flag:
-            s = re.sub(re.compile(r'^\W*', re.MULTILINE), ' ', s)
+            s = re.sub(re.compile(r'^[ \t\r\f\v]*', re.MULTILINE), ' ', s)
             short_comments.append(s)
     return long_comments, short_comments
 

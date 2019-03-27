@@ -1,5 +1,5 @@
 from docutils import nodes
-from docutils.parsers.rst import Directive
+from docutils.parsers.rst import *
 import os
 import svprettyplot.prettyplot as prettyplot
 from docutils.parsers.rst.directives.images import Image
@@ -35,12 +35,15 @@ class SVPrettyPlot(Image, SphinxDirective):
         except FileExistsError:
             pass
         comments = prettyplot.sv_prettyplot(path, '%s/%s.pdf' % (genimg_path, basename))
+
+        parser = docutils.parsers.rst.Parser()
+
+        # node['caption'] = nodes.caption("**%s** module." % basename)
         try:
-            text = nodes.Text("\n\n" + "\n\n".join(comments[0]))
-            print(text.astext())
+            text = docutils.utils.new_document("", settings=document.settings)
+            parser.parse("\n\n".join(comments[0]), text)
         except IndexError:
-            text = None
-            print("None")
+            text = nodes.paragraph("HELLO")
 
         self.arguments = ["dummy"]
         (node['image_node'],) = Image.run(self)
@@ -48,7 +51,7 @@ class SVPrettyPlot(Image, SphinxDirective):
         if text is not None:
             return [node, text ]
         else:
-            return [node ]
+            return [node, ]
 
 def setup(app):
     app.add_directive("svprettyplot", SVPrettyPlot)
