@@ -239,7 +239,7 @@ def add_edges(graph, module, port_list_name, shorthand_prefix, set_name=None, ki
                 label = module[port_list_name][i]['unpacked']
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, penwidth=3))
 
-def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
+def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True, cellspacing_block=10, cellspacing_wires=10):
     with open(path, "r") as f:
         code = f.read()
 
@@ -254,7 +254,7 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
         return bltin_gcd(a, b) == 1
 
     graph = pydotplus.graphviz.Dot('module', graph_type='digraph', rankdir='LR')
-    s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="10">'
+    s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="%d">' % cellspacing_block
     # title
     s += '<TR><TD PORT="t" COLSPAN="2"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
     # port rows
@@ -310,14 +310,14 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
     graph.add_node(pydotplus.graphviz.Node(module['name'], label=s, shape='none', fontname='Helvetica Neue'))
 
 
-    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="%d">\n' % cellspacing_wires
     s += write_nodes(module, 'input_ports', 'i', direction='in', set_name='inputs')
     s += write_nodes(module, 'incoming_interfaces', 'ii', kind='interface', direction='in', set_name='inputs')
     # s += write_nodes(module, 'interfaces', 'iri', set_name='incoming_rest_interfaces', kind='interface', direction='in', set_name='inputs')
     s += '</TABLE>>'
     graph.add_node(pydotplus.graphviz.Node('inputs', label=s, shape='none', fontname=DEFAULT_FONT, labeljust='r'))
 
-    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="9">\n'
+    s =  '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="%d">\n' % cellspacing_wires
     s += write_nodes(module, 'output_ports', 'o', direction='out', set_name='outputs')
     s += write_nodes(module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
     # s += write_nodes(module, 'interfaces', 'iro', set_name='outgoing_rest_interfaces', kind='interface', direction='out', set_name='outputs')
