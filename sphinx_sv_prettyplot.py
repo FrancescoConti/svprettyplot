@@ -28,13 +28,13 @@ class SVPrettyPlot(Image, SphinxDirective):
         document = self.state.document
 
         basename = os.path.basename(path)
-        node = nodes.image(uri='%s/%s.pdf' % (genimg_path, basename), figwidth='95%', width='95%', align='center')
+        node = nodes.image(uri='%s/%s.*' % (genimg_path, basename), figwidth='95%', width='95%', align='center')
 
         try:
             os.makedirs(genimg_path)
         except FileExistsError:
             pass
-        comments = prettyplot.sv_prettyplot(path, '%s/%s.pdf' % (genimg_path, basename))
+        comments = prettyplot.sv_prettyplot(path, '%s/%s' % (genimg_path, basename))
 
         parser = docutils.parsers.rst.Parser()
 

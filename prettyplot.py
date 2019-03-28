@@ -332,12 +332,15 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
     if gendot_path is not None:
         graph.write(gendot_path)
 
-    with open(genimg_path, "wb") as f:
+    with open(genimg_path+".pdf", "wb") as f:
         f.write(graph.create_pdf())
+
+    with open(genimg_path+".png", "wb") as f:
+        f.write(graph.create_png())
 
     return comments
 
 if __name__ == "__main__":
-    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/streamer/hwpe_stream_addressgen.sv", "genimg/hwpe_stream_addressgen.pdf", "genimg/hwpe_stream_addressgen.dot")
+    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/streamer/hwpe_stream_addressgen.sv", "genimg/hwpe_stream_addressgen", "genimg/hwpe_stream_addressgen.dot")
     # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "genimg/hwpe_stream_fifo.pdf", "genimg/hwpe_stream_fifo.dot")
     # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo_ctrl.sv", "genimg/hwpe_stream_fifo_ctrl.pdf", "genimg/hwpe_stream_fifo_ctrl.dot")
