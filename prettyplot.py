@@ -4,6 +4,8 @@ import re
 from collections import OrderedDict
 import pydotplus
 
+# used pythex.org to help put together the regexes!
+
 TOKENS = OrderedDict([
     ( 'MODULE_KEYWORD',       r'.*module\s*'                                                                                                      ),
     ( 'MODULE_NAME',          r'\A(\D\w*)\s*'                                                                                                     ),
@@ -12,7 +14,7 @@ TOKENS = OrderedDict([
     ( 'PARAMETER_DECL',       r'\Aparameter\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?(\D\w*)\s*=\s*(\w+)\s*'                           ),
     ( 'PORT_LIST_START',      r'\A\(\s*'                                                                                                          ),
     ( 'PORT_LIST_COMMA',      r'\A\,\s*'                                                                                                          ),
-    ( 'PORT_DECL', r'\A(input|output|inout)?\s*(\w+)?\s*(signed|unsigned)?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?(\w+)\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?'),
+    ( 'PORT_DECL', r'\A(input|output|inout)?\s*(\w+)?\s*(signed|unsigned)?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\w+)\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*'),
     ( 'PORT_DECL_INTF',       r'\A(\D\w*)\.(\D\w*)\s+(\D\w*)\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\]\s*)?'                ),
     ( 'LIST_STOP',            r'\A\)\s*'                                                                                                          ),
     ( 'DECL_END',             r'\A\;\s*'                                                                                                          )
@@ -203,7 +205,7 @@ def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='p
         for i in range(len(module[port_list_name])):
             tp = module[port_list_name][i]['type']
             tp = ' ' if tp in ('logic', 'wire', 'reg') else tp
-            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT>%s %s</TD></TR>' % (shorthand_prefix, i, align, font_face, tp, module[port_list_name][i]['packed0']+module[port_list_name][i]['packed1']+module[port_list_name][i]['packed2']+module[port_list_name][i]['packed3'], module[port_list_name][i]['name'])
+            s += '<TR><TD PORT="%s%d" ALIGN="%s"><FONT FACE="%s Bold">%s</FONT> %s</TD></TR>' % (shorthand_prefix, i, align, font_face, tp, module[port_list_name][i]['name'])
     else:
         for i in range(len(module[port_list_name])):
             try:
@@ -260,7 +262,7 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
     n_out = max(len(module['output_ports']), 1)
     coprime = coprime2(n_in, n_out) or always_coprime
     nb_ports = max(n_in, n_out) if coprime else n_in * n_out
-    if len(module['input_ports'])>0 or len(module['input_ports'])>0:
+    if len(module['input_ports'])>0 or len(module['output_ports'])>0:
         for i in range(0, nb_ports):
             i_out_cond = i<n_in  if coprime else i%n_out==0
             i_in_cond  = i<n_out if coprime else i%n_in==0
@@ -336,5 +338,6 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True):
     return comments
 
 if __name__ == "__main__":
-    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "genimg/hwpe_stream_fifo.pdf", "genimg/hwpe_stream_fifo.dot")
-    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo_ctrl.sv", "genimg/hwpe_stream_fifo_ctrl.pdf", "genimg/hwpe_stream_fifo_ctrl.dot")
+    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/streamer/hwpe_stream_addressgen.sv", "genimg/hwpe_stream_addressgen.pdf", "genimg/hwpe_stream_addressgen.dot")
+    # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "genimg/hwpe_stream_fifo.pdf", "genimg/hwpe_stream_fifo.dot")
+    # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo_ctrl.sv", "genimg/hwpe_stream_fifo_ctrl.pdf", "genimg/hwpe_stream_fifo_ctrl.dot")
