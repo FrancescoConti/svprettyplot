@@ -11,7 +11,7 @@ TOKENS = OrderedDict([
     ( 'MODULE_NAME',          r'\A(\D\w*)\s*'                                                                                                     ),
     ( 'PARAMETER_LIST_START', r'\A\#\(\s*'                                                                                                        ),
     ( 'PARAMETER_LIST_COMMA', r'\A\,\s*'                                                                                                          ),
-    ( 'PARAMETER_DECL',       r'\Aparameter\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?(\D\w*)\s*=\s*(\w+)\s*'                           ),
+    ( 'PARAMETER_DECL',       r'\Aparameter\s*(logic|wire|reg|int|integer)?\s*(signed|unsigned)?(\D\w*)\s*=\s*([\w\-\+\*\/\%\$\(\)]+)\s*'         ),
     ( 'PORT_LIST_START',      r'\A\(\s*'                                                                                                          ),
     ( 'PORT_LIST_COMMA',      r'\A\,\s*'                                                                                                          ),
     ( 'PORT_DECL', r'\A(input|output|inout)?\s*(\w+)?\s*(signed|unsigned)?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*(\w+)\s*(\[\s*[\w\-\+\*\/\%\$\(\)]+\s*\:\s*[\w\-\+\*\/\%\$\(\)]+\s*\])?\s*'),
