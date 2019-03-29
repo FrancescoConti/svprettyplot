@@ -239,7 +239,7 @@ def add_edges(graph, module, port_list_name, shorthand_prefix, set_name=None, ki
                 label = module[port_list_name][i]['unpacked']
                 graph.add_edge(pydotplus.graphviz.Edge((module['name']+':%s%d' % (shorthand_prefix, i), '%s:%s%d' % (set_name, shorthand_prefix, i)), label=label, fontsize=10, fontname=font_face, penwidth=3))
 
-def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True, cellspacing_block=10, cellspacing_wires=10):
+def sv_prettyplot(path, genimg_path, gendot=True, always_coprime=True, cellspacing_block=10, cellspacing_wires=10):
     with open(path, "r") as f:
         code = f.read()
 
@@ -257,48 +257,75 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True, cell
     s =  '<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="%d">' % cellspacing_block
     # title
     s += '<TR><TD PORT="t" COLSPAN="2"><FONT FACE="Helvetica Neue Bold">%s</FONT></TD></TR>\n' % (module['name'])
-    # port rows
-    n_in  = max(len(module['input_ports']), 1)
-    n_out = max(len(module['output_ports']), 1)
-    coprime = coprime2(n_in, n_out) or always_coprime
-    nb_ports = max(n_in, n_out) if coprime else n_in * n_out
-    if len(module['input_ports'])>0 or len(module['output_ports'])>0:
-        for i in range(0, nb_ports):
-            i_out_cond = i<n_in  if coprime else i%n_out==0
-            i_in_cond  = i<n_out if coprime else i%n_in==0
-            i_out = i if coprime else i//n_out
-            i_in  = i if coprime else i//n_in
-            rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
-            rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
-            s += '<TR>\n'
-            if i_out_cond:
-                if i_out < len(module['input_ports']):
-                    s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['input_ports'][i_out]['name'])
-            if i_in_cond:
-                if i_in < len(module['output_ports']):
-                    s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['output_ports'][i_in]['name'])
-            s += '</TR>\n'
-    # interface rows (incoming, outgoing)
-    n_in  = max(len(module['incoming_interfaces']), 1)
-    n_out = max(len(module['outgoing_interfaces']), 1)
-    coprime = coprime2(n_in, n_out) or always_coprime
-    nb_ports = max(n_in, n_out) if coprime else n_in * n_out
-    if len(module['incoming_interfaces'])>0 or len(module['outgoing_interfaces'])>0:
-        for i in range(0, nb_ports):
-            i_out_cond = i<n_in  if coprime else i%n_out==0
-            i_in_cond  = i<n_out if coprime else i%n_in==0
-            i_out = i if coprime else i//n_out
-            i_in  = i if coprime else i//n_in
-            rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
-            rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
-            s += '<TR>\n'
-            if i_out_cond:
-                if i_out < len(module['incoming_interfaces']):
-                    s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['incoming_interfaces'][i_out]['name'])
-            if i_in_cond:
-                if i_in < len(module['outgoing_interfaces']):
-                    s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['outgoing_interfaces'][i_in]['name'])
-            s += '</TR>\n'
+    # all rows
+    if always_coprime:
+        n_in  = max(len(module['input_ports']) +len(module['incoming_interfaces']), 1)
+        n_out = max(len(module['output_ports'])+len(module['outgoing_interfaces']), 1)
+        coprime = coprime2(n_in, n_out) or always_coprime
+        nb_ports = max(n_in, n_out) if coprime else n_in * n_out
+        if len(module['input_ports'])+len(module['incoming_interfaces'])>0 or len(module['output_ports'])+len(module['outgoing_interfaces'])>0:
+            for i in range(0, nb_ports):
+                i_out_cond = i<n_in  if coprime else i%n_out==0
+                i_in_cond  = i<n_out if coprime else i%n_in==0
+                i_out = i if coprime else i//n_out
+                i_in  = i if coprime else i//n_in
+                rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
+                rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
+                s += '<TR>\n'
+                if i_out_cond:
+                    if i_out < len(module['input_ports']):
+                        s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['input_ports'][i_out]['name'])
+                    elif i_out < len(module['input_ports'])+len(module['incoming_interfaces']):
+                        s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out-len(module['input_ports']), module['incoming_interfaces'][i_out-len(module['input_ports'])]['name'])
+                if i_in_cond:
+                    if i_in < len(module['output_ports']):
+                        s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['output_ports'][i_in]['name'])
+                    elif i_in < len(module['output_ports'])+len(module['outgoing_interfaces']):
+                        s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in-len(module['output_ports']), module['outgoing_interfaces'][i_in-len(module['output_ports'])]['name'])
+                s += '</TR>\n'
+    else:
+        # port rows
+        n_in  = max(len(module['input_ports']) +len(module['incoming_interfaces']), 1)
+        n_out = max(len(module['output_ports'])+len(module['outgoing_interfaces']), 1)
+        coprime = coprime2(n_in, n_out) or always_coprime
+        nb_ports = max(n_in, n_out) if coprime else n_in * n_out
+        if len(module['input_ports'])>0 or len(module['output_ports'])>0:
+            for i in range(0, nb_ports):
+                i_out_cond = i<n_in  if coprime else i%n_out==0
+                i_in_cond  = i<n_out if coprime else i%n_in==0
+                i_out = i if coprime else i//n_out
+                i_in  = i if coprime else i//n_in
+                rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
+                rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
+                s += '<TR>\n'
+                if i_out_cond:
+                    if i_out < len(module['input_ports']):
+                        s += '<TD ROWSPAN="%d" PORT="i%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['input_ports'][i_out]['name'])
+                if i_in_cond:
+                    if i_in < len(module['output_ports']):
+                        s += '<TD ROWSPAN="%d" PORT="o%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['output_ports'][i_in]['name'])
+                s += '</TR>\n'
+        # interface rows (incoming, outgoing)
+        n_in  = max(len(module['incoming_interfaces']), 1)
+        n_out = max(len(module['outgoing_interfaces']), 1)
+        coprime = coprime2(n_in, n_out) or always_coprime
+        nb_ports = max(n_in, n_out) if coprime else n_in * n_out
+        if len(module['incoming_interfaces'])>0 or len(module['outgoing_interfaces'])>0:
+            for i in range(0, nb_ports):
+                i_out_cond = i<n_in  if coprime else i%n_out==0
+                i_in_cond  = i<n_out if coprime else i%n_in==0
+                i_out = i if coprime else i//n_out
+                i_in  = i if coprime else i//n_in
+                rs_out = 1 if i<n_in  else nb_ports-n_out+1 if coprime else n_out
+                rs_in  = 1 if i<n_out else nb_ports-n_in +1 if coprime else n_in
+                s += '<TR>\n'
+                if i_out_cond:
+                    if i_out < len(module['incoming_interfaces']):
+                        s += '<TD ROWSPAN="%d" PORT="ii%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_out, i_out, module['incoming_interfaces'][i_out]['name'])
+                if i_in_cond:
+                    if i_in < len(module['outgoing_interfaces']):
+                        s += '<TD ROWSPAN="%d" PORT="io%d"><FONT COLOR="white">%s</FONT></TD>\n' % (rs_in, i_in, module['outgoing_interfaces'][i_in]['name'])
+                s += '</TR>\n'
     # interface rows -- the rest
     n = len(module['interfaces'])
     for i in range(0, n):
@@ -329,8 +356,8 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True, cell
     add_edges(graph, module, 'output_ports', 'o', direction='out', set_name='outputs')
     add_edges(graph, module, 'outgoing_interfaces', 'io', kind='interface', direction='out', set_name='outputs')
 
-    if gendot_path is not None:
-        graph.write(gendot_path)
+    # if gendot:
+    graph.write(genimg_path+".dot")
 
     with open(genimg_path+".pdf", "wb") as f:
         f.write(graph.create_pdf())
@@ -341,6 +368,7 @@ def sv_prettyplot(path, genimg_path, gendot_path=None, always_coprime=True, cell
     return comments
 
 if __name__ == "__main__":
-    sv_prettyplot("/Users/fconti/hwpe-stream/rtl/streamer/hwpe_stream_addressgen.sv", "genimg/hwpe_stream_addressgen", "genimg/hwpe_stream_addressgen.dot")
+    pass
+    # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/streamer/hwpe_stream_addressgen.sv", "genimg/hwpe_stream_addressgen", True)
     # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo.sv", "genimg/hwpe_stream_fifo.pdf", "genimg/hwpe_stream_fifo.dot")
     # sv_prettyplot("/Users/fconti/hwpe-stream/rtl/fifo/hwpe_stream_fifo_ctrl.sv", "genimg/hwpe_stream_fifo_ctrl.pdf", "genimg/hwpe_stream_fifo_ctrl.dot")
