@@ -189,6 +189,7 @@ INTERFACE_MAP = {
     'hwpe_stream_intf_stream' : 'HWPE-Stream',
     'hwpe_stream_intf_tcdm'   : 'HWPE-Mem',
     'hwpe_ctrl_intf_periph'   : 'HWPE-Periph',
+    'hci_core_intf'           : 'HCI-Core'
 }
 
 def write_nodes(module, port_list_name, shorthand_prefix, set_name=None, kind='port', direction='in', font_face=DEFAULT_FONT):
