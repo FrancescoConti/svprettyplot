@@ -50,8 +50,8 @@ FOLLOWS = OrderedDict([
 ])
 
 # specific to HWPEs
-INTERFACES_INCOMING_MODPORTS = ( 'slave', 'sink', 'monitor' )
-INTERFACES_OUTGOING_MODPORTS = ( 'master', 'source' )
+INTERFACES_INCOMING_MODPORTS = ( 'slave', 'sink', 'monitor', 'target' )
+INTERFACES_OUTGOING_MODPORTS = ( 'master', 'source', 'initiator' )
 
 def tokenize_and_parse(code, verbose=False, follows_list=FOLLOWS, tokens_list=TOKENS, matches_list=MATCHES):
     # tokenize & parse
